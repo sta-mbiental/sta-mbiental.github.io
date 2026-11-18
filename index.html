@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Validação de VTO</title>
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+  <div id="pagina" class="pagina">
+    <header class="cabecalho">
+      <div class="marca">
+        <svg id="logo-vt" class="marca-logo" width="96" height="42" viewBox="0 0 96 42" role="img" aria-label="Logotipo VTQ">
+          <rect x="2" y="4" width="52" height="34" rx="6" fill="#181A1B"/>
+          <text x="28" y="28" text-anchor="middle" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="21" font-weight="800" letter-spacing="0.5">VT</text>
+          <circle cx="71" cy="19" r="10.5" fill="none" stroke="#54B534" stroke-width="4"/>
+          <line x1="78.5" y1="26.5" x2="88" y2="36" stroke="#54B534" stroke-width="4.5" stroke-linecap="round"/>
+        </svg>
+        <div class="marca-texto">
+          <p id="marca-titulo" class="marca-titulo">Validação de VTO</p>
+          <p id="marca-subtitulo" class="marca-subtitulo">Verificação de Transparência de Origem</p>
+        </div>
+      </div>
+    </header>
+
+    <main id="conteudo" class="cartao">
+      <div id="area-estado" role="status" aria-live="polite">
+        <section class="secao">
+          <div class="carregando-box">
+            <span class="carregando-spinner" aria-hidden="true"></span>
+            <p class="carregando-texto">Consultando o documento…</p>
+          </div>
+        </section>
+      </div>
+
+      <footer class="rodape">
+        <p id="rodape-emissor" class="rodape-emissor">Emitido por STA – Soluções Técnicas Ambientais</p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
