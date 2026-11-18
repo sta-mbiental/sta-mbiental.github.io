@@ -4,6 +4,9 @@ const TIMEOUT_MS = 30000;
 const REVOGAR_URL_MS = 60000;
 const ESTADOS_VALIDOS = ['autentico', 'cancelado', 'bloqueado', 'nao_encontrado'];
 const SVG_NS = 'http://www.w3.org/2000/svg';
+// Marcas de direção do texto (U+200E, U+200F, U+202A a U+202E, U+2066 a U+2069), montadas pelo código numérico.
+const CONTROLES_BIDI = new RegExp('[' + [0x200e, 0x200f, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066, 0x2067, 0x2068, 0x2069]
+  .map(function (c) { return String.fromCharCode(c); }).join('') + ']', 'g');
 
 const TEXTOS = {
   pt: {
@@ -266,7 +269,7 @@ function sanearNomeArquivo(nome) {
   if (typeof nome !== 'string') {
     return 'documento.pdf';
   }
-  let limpo = nome.replace(/[/\\:*?"<>|\x00-\x1f\x7f-\x9f‎‏‪-‮⁦-⁩]/g, '')
+  let limpo = nome.replace(/[/\\:*?"<>|\x00-\x1f\x7f-\x9f]/g, '').replace(CONTROLES_BIDI, '')
     .trim().replace(/[. ]+$/, '');
   if (!limpo) {
     return 'documento.pdf';
@@ -279,7 +282,12 @@ function sanearNomeArquivo(nome) {
   }
   const ponto = limpo.lastIndexOf('.');
   const extensao = ponto > 0 && limpo.length - ponto < 180 ? limpo.slice(ponto) : '';
-  const base = limpo.slice(0, 180 - extensao.length).replace(/[\uD800-\uDBFF]$/, '').replace(/[. ]+$/, '');
+  let base = limpo.slice(0, 180 - extensao.length);
+  const ultimo = base.charCodeAt(base.length - 1);
+  if (ultimo >= 0xd800 && ultimo <= 0xdbff) {
+    base = base.slice(0, -1);
+  }
+  base = base.replace(/[. ]+$/, '');
   return (base || '_') + extensao;
 }
 
