@@ -46,8 +46,7 @@ const TEXTOS = {
     rodapeEmissor: 'Emitido por STA – Soluções Técnicas Ambientais',
     baixando: 'Baixando...',
     falha: 'Não foi possível baixar o arquivo.',
-    erroPreparo: 'Erro ao preparar o arquivo para download.',
-    erroSolicitar: 'Erro ao solicitar o download. Tente novamente.'
+    muitasSolicitacoes: 'Muitas solicitações. Aguarde alguns minutos e tente novamente.'
   },
   en: {
     tituloPagina: 'VTO Validation',
@@ -89,8 +88,7 @@ const TEXTOS = {
     rodapeEmissor: 'Issued by STA – Soluções Técnicas Ambientais',
     baixando: 'Downloading...',
     falha: 'Could not download the file.',
-    erroPreparo: 'Error preparing the file for download.',
-    erroSolicitar: 'Error requesting download. Please try again.'
+    muitasSolicitacoes: 'Too many requests. Please wait a few minutes and try again.'
   }
 };
 
@@ -100,8 +98,9 @@ function obterIdioma(valor) {
 
 function lerParametrosUrl(search) {
   const params = new URLSearchParams(search || '');
+  const codigos = params.getAll('v');
   return {
-    codigo: params.get('v') || '',
+    codigo: codigos.length === 1 ? codigos[0] : '',
     idioma: obterIdioma(params.get('l'))
   };
 }
@@ -149,7 +148,7 @@ function validarItemArquivo(arq) {
   if (!ehObjetoSimples(arq)) {
     return false;
   }
-  if (typeof arq.indice !== 'number' || !Number.isInteger(arq.indice) || arq.indice < 0) {
+  if (!Number.isSafeInteger(arq.indice) || arq.indice < 0 || Object.is(arq.indice, -0)) {
     return false;
   }
   if (typeof arq.nome !== 'string') {
@@ -267,22 +266,21 @@ function sanearNomeArquivo(nome) {
   if (typeof nome !== 'string') {
     return 'documento.pdf';
   }
-  const limpo = nome.replace(/[/\\:*?"<>|\x00-\x1f\x7f]/g, '').trim();
-  if (!limpo || /^\.+$/.test(limpo)) {
+  let limpo = nome.replace(/[/\\:*?"<>|\x00-\x1f\x7f-\x9f‎‏‪-‮⁦-⁩]/g, '')
+    .trim().replace(/[. ]+$/, '');
+  if (!limpo) {
     return 'documento.pdf';
   }
-  return limpo;
-}
-
-function sanearMime(mime) {
-  if (typeof mime !== 'string') {
-    return 'application/octet-stream';
+  if (/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i.test(limpo.split('.')[0].trimEnd())) {
+    limpo = '_' + limpo;
   }
-  const limpo = mime.trim();
-  if (/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/i.test(limpo)) {
+  if (limpo.length <= 180) {
     return limpo;
   }
-  return 'application/octet-stream';
+  const ponto = limpo.lastIndexOf('.');
+  const extensao = ponto > 0 && limpo.length - ponto < 180 ? limpo.slice(ponto) : '';
+  const base = limpo.slice(0, 180 - extensao.length).replace(/[\uD800-\uDBFF]$/, '').replace(/[. ]+$/, '');
+  return (base || '_') + extensao;
 }
 
 function decodificarBase64(b64) {
@@ -451,8 +449,7 @@ async function fetchJsonComTimeout(url, timeoutMs) {
 
 function iniciarDownload(res) {
   const bytes = decodificarBase64(res.base64);
-  const mime = sanearMime(res.mime);
-  const blob = new Blob([bytes], { type: mime });
+  const blob = new Blob([bytes], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -477,7 +474,7 @@ async function baixarArquivo(codigo, indice, botao, erroEl, txt) {
   } catch (e) {
     botao.disabled = false;
     botao.textContent = txt.btnBaixar;
-    erroEl.textContent = txt.erroSolicitar;
+    erroEl.textContent = txt.falha;
     return;
   }
 
@@ -485,7 +482,7 @@ async function baixarArquivo(codigo, indice, botao, erroEl, txt) {
   botao.textContent = txt.btnBaixar;
 
   if (!ehObjetoSimples(res) || res.erro) {
-    erroEl.textContent = (ehObjetoSimples(res) && typeof res.erro === 'string' && res.erro) ? res.erro : txt.falha;
+    erroEl.textContent = res?.erro === 'muitas_solicitacoes' ? txt.muitasSolicitacoes : txt.falha;
     return;
   }
 
@@ -497,7 +494,7 @@ async function baixarArquivo(codigo, indice, botao, erroEl, txt) {
   try {
     iniciarDownload(res);
   } catch (e) {
-    erroEl.textContent = txt.erroPreparo;
+    erroEl.textContent = txt.falha;
   }
 }
 
@@ -681,7 +678,8 @@ async function consultarDocumento(area, codigo, idioma, txt) {
 }
 
 function inicializar() {
-  const { codigo, idioma } = lerParametrosUrl(window.location.search);
+  const search = window.location.search;
+  const { codigo, idioma } = lerParametrosUrl(search);
   const txt = TEXTOS[idioma];
 
   if (estaEmIframe()) {
@@ -692,6 +690,7 @@ function inicializar() {
     return;
   }
 
+  document.getElementById('pagina')?.classList.remove('oculto');
   aplicarTextosFixos(idioma, txt);
 
   const area = document.getElementById('area-estado');
@@ -699,7 +698,7 @@ function inicializar() {
     return;
   }
 
-  if (!codigo) {
+  if (!codigo && new URLSearchParams(search).getAll('v').length < 2) {
     renderizarSemCodigo(area, txt);
     return;
   }
@@ -735,7 +734,6 @@ if (typeof module !== 'undefined') {
     formatarPeriodo,
     ordenarArquivos,
     sanearNomeArquivo,
-    sanearMime,
     decodificarBase64
   };
 }
